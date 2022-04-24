@@ -2,6 +2,8 @@
 monomialDividesP = (m1, m2) -> (
         e1 := (exponents(m1))#0;
         e2 := (exponents(m2))#0;
+        -- transposition converts the two vectors into a list of pairs
+        -- second argument to all is a lambda fucntion which compares exponents
         all(transpose({e1, e2}), e -> e#0 <= e#1)
 );
 
