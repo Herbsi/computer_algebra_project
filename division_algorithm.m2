@@ -4,7 +4,15 @@ monomialDividesP = (m1, m2) -> (
         e2 := (exponents(m2))#0;
         -- transposition converts the two vectors into a list of pairs
         -- second argument to all is a lambda fucntion which compares exponents
-        all(transpose({e1, e2}), e -> e#0 <= e#1)
+        return all(transpose({e1, e2}), e -> e#0 <= e#1);
+);
+
+-- function which devides m2 by m1 given m1 | m2
+monomialDivide = (m1, m2) -> (
+    e1 := (exponents(m1))#0;
+    e2 := (exponents(m2))#0;
+    -- TODO: here it would be nice to convert the exponentvector back to a polynomial considering the coefficient
+    return e2-e1;
 );
 
 -- take the polynomial f and a list l of polynomials
