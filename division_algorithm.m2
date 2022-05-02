@@ -11,8 +11,11 @@ monomialDividesP = (m1, m2) -> (
 monomialDivide = (m1, m2) -> (
     e1 := (exponents(m1))#0;
     e2 := (exponents(m2))#0;
-    -- TODO: here it would be nice to convert the exponentvector back to a polynomial considering the coefficient
-    return e2-e1;
+    c1 := leadCoefficient(m1);
+    c2 := leadCoefficient(m2);
+    e := e2 - e1;
+    theRing := ring(m1);
+    c2 / c1 * theRing_e
 );
 
 -- take the polynomial f and a list l of polynomials
@@ -32,9 +35,8 @@ division_alg = (f, l) -> (
             -- the current l_i divides the leading monomial of f
             -- so we subtract a multiple of f and add it to the q_i
             if monomialDividesP(leadMonomial(l#i), leadMonomial(f)) then (
-              -- TODO Can we use '//'?
-              qs#i = qs#i + leadTerm(f) // leadTerm(l#i);
-              f = f - (leadTerm(f) // leadTerm(l#i)) * l#i;
+              qs#i = qs#i + monomialDivide(leadTerm(l#i), leadTerm(f));
+              f = f - monomialDivide(leadTerm(l#i), leadTerm(f)) * l#i;
               divOccurred = true;
             ) else (
               i = i + 1;
