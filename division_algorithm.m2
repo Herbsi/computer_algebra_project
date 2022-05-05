@@ -1,3 +1,8 @@
+-------------------------------------------------------------------------------
+-- Project: implementing the division algorithm                              --
+-- Names  : Herwig Höhenberger, Jurek Rostalsky, Thomas Weizenegger          --
+-------------------------------------------------------------------------------
+
 -- Helper function that checkes whether m1 | m2 since m2 % m1 == 0 is forbidden
 monomialDividesP = (m1, m2) -> (
         e1 := (exponents(m1))#0;
@@ -15,7 +20,7 @@ monomialDivide = (m1, m2) -> (
     c2 := leadCoefficient(m2);
     e := e2 - e1;
     theRing := ring(m1);
-    c2 / c1 * theRing_e
+    return c2 / c1 * theRing_e
 );
 
 -- take the polynomial f and a list l of polynomials
@@ -50,7 +55,7 @@ division_alg = (f, l) -> (
             f = f - leadTerm(f);
         );
     );
-    { toList qs, r }
+    return { toList qs, r }
 );
 
 -- These two examples give the same result as in the book pg. 62–63
