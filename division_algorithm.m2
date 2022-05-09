@@ -49,7 +49,7 @@ division_alg = (f, l) -> (
         );
         -- None of the leading monomials of the ls divide the leading monomial of f anymore
         -- So the leading term of f gets added to the remainder
-        -- We subtract it from f and continue with theh algorithm (unless f is 0)
+        -- We subtract it from f and continue with the algorithm (unless f is 0)
         if (not divOccurred) then (
             r = r + leadTerm(f);
             f = f - leadTerm(f);
