@@ -5,15 +5,20 @@
 
 -- Helper function that checkes whether m1 | m2 since m2 % m1 == 0 is forbidden
 monomialDividesP = (m1, m2) -> (
+        if m2 == 0 then return true;
+        -- m2 != 0 but m1 == 0 => not divisible
+        if m1 == 0 then return false;
+
         e1 := (exponents(m1))#0;
         e2 := (exponents(m2))#0;
         -- transposition converts the two vectors into a list of pairs
         -- second argument to all is a lambda fucntion which compares exponents
-        return all(transpose({e1, e2}), e -> e#0 <= e#1);
+        return all(transpose({e1, e2}), e -> e#0 <= e#1)
 );
 
 -- function which devides m2 by m1 given m1 | m2
 monomialDivide = (m1, m2) -> (
+    if m2 == 0 then return 0;
     e1 := (exponents(m1))#0;
     e2 := (exponents(m2))#0;
     c1 := leadCoefficient(m1);
@@ -61,7 +66,7 @@ division_alg = (f, l) -> (
 -- These two examples give the same result as in the book pg. 62–63
 QQ[x,y,MonomialOrder=>Lex];
 f = x*y^2 + 1;
-gs = {x*y + 1, y + 1};
+gs = { x*y + 1, y + 1 };
 division_alg(f, gs)
 
 f = x^2*y + x*y^2 + y^2;
