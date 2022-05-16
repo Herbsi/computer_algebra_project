@@ -1,17 +1,156 @@
-\documentclass[a4paper,article,math]{turtwig}
+\documentclass[a4paper,article,math]{extarticle}
+
+\usepackage[left=3.00cm, right=3.00cm, top=3.00cm, bottom=3.00cm]{geometry} %Abmessungen
+
+% für richtigen Umgang mit deutscher Sprache
+\usepackage[utf8]{inputenc}
+\usepackage[british]{babel}
+\usepackage[T1]{fontenc}
 
 \usepackage{listings}
+\lstset{frame=tb,
+	language=,
+	aboveskip=3mm,
+	belowskip=3mm,
+	showstringspaces=false,
+	columns=flexible,
+	basicstyle={\small\ttfamily},
+	numbers=left,
+	breaklines=true,
+	breakatwhitespace=true,
+	tabsize=3,
+}
 
-\usepackage{biblatex}
-\addbibresource{bibliography.bib}
+\usepackage{todonotes}
+\presetkeys{todonotes}{inline}{}%immer inline-option bei todo-Befehl
+
+\usepackage[onehalfspacing]{setspace}%1,5 facher Zeilenabstand
+
+\newtheorem{defi}{Definition}[section]
+\newtheorem{thm}[defi]{Theorem}
+\newtheorem{prop}[defi]{Proposition}
+\newtheorem{lem}[defi]{Lemma}
+\newtheorem{kor}[defi]{Korollar}
+\newtheorem{bsp}[defi]{Beispiel}
+
+\newcommand{\kx}{k[x_1, \dots, x_n]}
 
 \title{Implementation of the Division Algorithm in Macaulay2}
 \author{Herwig Höhenberger \and Jurek Rostalsky \and Thomas Weizenegger}
 
 \begin{document}
 \maketitle
-\tableofcontents
 \section{Problem Statement}
-\section{Solution}
-\printbibliography%
+In this document, $k$ refers to an arbitrary field.\\
+In polynomial rings over one variable, there is the following well-known division theorem
+(Proposition 2 in chapter 1.5 of \cite{cox-2013}):
+\begin{thm}
+	Let $f, g \in k[x], g \neq 0$.
+	Then there exist unique $q, r \in k[x]$ satisfying
+	\begin{itemize}
+		\item $f = q \cdot g + r$
+		\item $r=0$ or $\deg(r) < \deg(g)$
+	\end{itemize}
+\end{thm}
+The proof of this theorem in \cite{cox-2013} includes a well-known algorithm to compute $q$ and $r$.\\
+Once we switch from one variable to multiple (but finitely many) variables, we have a similar result
+(Theorem 3 in chapter 2.3 of \cite{cox-2013}):
+\begin{thm}
+	Let $>$ be a monomial ordering on the monomials of $\kx$, $f \in \kx$
+	and $(l_1, \dots, l_s)$ be an ordered $s$-tuple of polynomials in $\kx$.
+	Then there exist $q_1, \dots, q_s, r \in \kx$ satisfying
+	\begin{itemize}
+		\item $f = q_1l_1 + \dots + q_sl_s + r$
+		\item No term of $r$ is divisible by any of $LM(l_1), \dots, LM(l_s)$
+	\end{itemize}
+\end{thm}
+Again, one can find an algorithm for this problem in the proof in \cite{cox-2013}.\\
+This document is about an implementation of that algorithm in Macaulay2
+while avoiding the built-in operators \texttt{\%}, \texttt{/} and \texttt{//} on polynomials (and hence also on monomials).\\
+For example, the implementation could be used in the following context (\texttt{division\_alg} is the function to be implemented):
+\begin{lstlisting}
+	QQ[x,y,MonomialOrder=>Lex];
+	f = x*y^2 + 1;
+	gs = { x*y + 1, y + 1 };
+	division_alg(f, gs)
+\end{lstlisting}
+\section{Implementation}
+\subsection{Helper function for checking for divisibility}
+First, a function had to be implemented that checks for two given terms $m1, m2$ if $m1$ divides $m2$.
+The straightforward way for this in Macaulay2 would be the condition \texttt{m2 \% m1 == 0}.
+Since the \texttt{\%}-operator is not allowed, a manual implementation is needed.
+\begin{lstlisting}
+	monomialDividesP = (m1, m2) -> (
+		if m2 == 0 then return true;
+		-- m2 != 0 but m1 == 0 => not divisible
+		if m1 == 0 then return false;
+		
+		e1 := (exponents(m1))#0;
+		e2 := (exponents(m2))#0;
+		-- transposition converts the two vectors into a list of pairs
+		-- second argument to all is a lambda fucntion which compares exponents
+		return all(transpose({e1, e2}), e -> e#0 <= e#1)
+	);
+\end{lstlisting}
+Lines 6 and 7 extract the vectors of the exponents of the terms, line 10 checks if every of the exponents is smaller or equal for $m_1$ than for $m_2$ (which is equivalent to $m_2$ being divisible by $m_2$).
+\subsection{Helper function for dividing monomials}
+The second (and last) helper function actually divides the term $m_2$ by the term $m_1$.
+It has the precondition that $m_2$ is divisible by $m_1$.
+So, divisibility should be check before.
+\begin{lstlisting}
+	monomialDivide = (m1, m2) -> (
+		if m2 == 0 then return 0;
+		e1 := (exponents(m1))#0;
+		e2 := (exponents(m2))#0;
+		c1 := leadCoefficient(m1);
+		c2 := leadCoefficient(m2);
+		e := e2 - e1;
+		theRing := ring(m1);
+		return c2 / c1 * theRing_e
+	);
+\end{lstlisting}
+Division of monomials can be performed by subtraction of the respective exponents.
+The implementation does this in line 7.
+The underscore syntax in line 9 (“\texttt{theRing\_e}”) calculates the ring element (i.e. the monomial) that corresponds to the exponent vector \texttt{e}.\\
+Usage of the \texttt{/}-operator is allowed here because it performs division of constants instead of polynomials.
+\pagebreak
+\subsection{Main function}
+\begin{lstlisting}
+	division_alg = (f, l) -> (
+		s := length l;
+		-- Initialize coefficients and remainder to 0
+		qs := new MutableList from apply(toList(1..s), i -> 0);
+		r := 0;
+		while f != 0 do (
+			i := 0;
+			-- remember whether we divide out a term
+			divOccurred := false;
+			while i < s and (not divOccurred) do (
+				-- the current l_i divides the leading monomial of f
+				-- so we subtract a multiple of f and add it to the q_i
+				if monomialDividesP(leadMonomial(l#i), leadMonomial(f)) then (
+					qs#i = qs#i + monomialDivide(leadTerm(l#i), leadTerm(f));
+					f = f - monomialDivide(leadTerm(l#i), leadTerm(f)) * l#i;
+					divOccurred = true;
+				) else (
+					i = i + 1;
+				);
+			);
+			-- None of the leading monomials of the ls divide the leading monomial of f anymore
+			-- So the leading term of f gets added to the remainder
+			-- We subtract it from f and continue with the algorithm (unless f is 0)
+			if (not divOccurred) then (
+				r = r + leadTerm(f);
+				f = f - leadTerm(f);
+			);
+		);
+		return { toList qs, r }
+	);
+\end{lstlisting}
+The algorithm repeatedly checks whether the leading monomial of $f$ is divisible by one of the leading monomial
+of one of the $l_i$. If so, it performs the division and adds the quotient to the correct $qs_i$.
+\todo{to be continued...}
+\nocite{*}
+\bibliographystyle{plain}
+\bibliography{bibliography}
 \end{document}
