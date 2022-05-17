@@ -74,6 +74,7 @@ For example, the implementation could be used in the following context (\texttt{
 	gs = { x*y + 1, y + 1 };
 	division_alg(f, gs)
 \end{lstlisting}
+\todo{hier könnten wir noch die Ausgabe von der Funktion dazupacken}
 \section{Implementation}
 \subsection{Helper function for checking for divisibility}
 First, a function had to be implemented that checks for two given terms $m1, m2$ if $m1$ divides $m2$.
@@ -92,11 +93,11 @@ Since the \texttt{\%}-operator is not allowed, a manual implementation is needed
 		return all(transpose({e1, e2}), e -> e#0 <= e#1)
 	);
 \end{lstlisting}
-Lines 6 and 7 extract the vectors of the exponents of the terms, line 10 checks if every of the exponents is smaller or equal for $m_1$ than for $m_2$ (which is equivalent to $m_2$ being divisible by $m_2$).
+Lines 6 and 7 extract the vectors of the exponents of the terms, line 10 checks if every of the exponents is smaller or equal for $m_1$ than for $m_2$ (which is equivalent to $m_2$ being divisible by $m_1$).
 \subsection{Helper function for dividing monomials}
 The second (and last) helper function actually divides the term $m_2$ by the term $m_1$.
 It has the precondition that $m_2$ is divisible by $m_1$.
-So, divisibility should be check before.
+So, divisibility should be checked before.
 \begin{lstlisting}
 	monomialDivide = (m1, m2) -> (
 		if m2 == 0 then return 0;
@@ -147,9 +148,21 @@ Usage of the \texttt{/}-operator is allowed here because it performs division of
 		return { toList qs, r }
 	);
 \end{lstlisting}
-The algorithm repeatedly checks whether the leading monomial of $f$ is divisible by one of the leading monomial
-of one of the $l_i$. If so, it performs the division and adds the quotient to the correct $qs_i$.
-\todo{to be continued...}
+The algorithm repeatedly checks whether the leading monomial of $f$ is divisible by a leading monomial
+of one of the $l_i$. If so, it performs the division and adds the quotient to the correct $qs_i$ (lines 14 and 15).
+If not, it moves the leading term from $f$ to the remainder (lines 25 and 26).
+
+The correctness of the algorithm can be proven easily by showing that the following invariant holds before and after
+every iteration of the outer while-loop
+$$f_{orig} = f + qs_1 \cdot l_1 + \dots + qs_s \cdot l_s + r$$
+$f_{orig}$ refers to the value of $f$ at the beginning of the algorithm.
+
+To make sure that the algorithm terminates, one has to show that $f$ will eventually become $0$.
+In order to do that, one can observe that the leading monomial of $f$ becomes strictly smaller
+(w.r.t. to the monomial ordering)
+in every iteration of the outer while-loop.
+Since there is no infinitely long strictly decreasing chain of monomials w.r.t. a monomial ordering,
+$f$ has to become $0$ after finitely many iterations.
 \nocite{*}
 \bibliographystyle{plain}
 \bibliography{bibliography}
