@@ -1,11 +1,10 @@
-\documentclass[a4paper,article,math]{extarticle}
+\documentclass[a4paper]{scrartcl}
 
-\usepackage[left=3.00cm, right=3.00cm, top=3.00cm, bottom=3.00cm]{geometry} %Abmessungen
-
-% für richtigen Umgang mit deutscher Sprache
 \usepackage[utf8]{inputenc}
 \usepackage[british]{babel}
 \usepackage[T1]{fontenc}
+
+\usepackage{amsmath}
 
 \usepackage{listings}
 \lstset{frame=tb,
@@ -24,16 +23,13 @@
 \usepackage{todonotes}
 \presetkeys{todonotes}{inline}{}%immer inline-option bei todo-Befehl
 
-\usepackage[onehalfspacing]{setspace}%1,5 facher Zeilenabstand
-
 \newtheorem{defi}{Definition}[section]
 \newtheorem{thm}[defi]{Theorem}
 \newtheorem{prop}[defi]{Proposition}
 \newtheorem{lem}[defi]{Lemma}
-\newtheorem{kor}[defi]{Korollar}
-\newtheorem{bsp}[defi]{Beispiel}
 
 \newcommand{\kx}{k[x_1, \dots, x_n]}
+\newcommand{\LM}{\ensuremath{\mathrm{LM}}}
 
 \title{Implementation of the Division Algorithm in Macaulay2}
 \author{Herwig Höhenberger \and Jurek Rostalsky \and Thomas Weizenegger}
@@ -41,41 +37,51 @@
 \begin{document}
 \maketitle
 \section{Problem Statement}
-In this document, $k$ refers to an arbitrary field.\\
+In this document, $k$ refers to an arbitrary field.
 In polynomial rings over one variable, there is the following well-known division theorem
 (Proposition 2 in chapter 1.5 of \cite{cox-2013}):
 \begin{thm}
 	Let $f, g \in k[x], g \neq 0$.
 	Then there exist unique $q, r \in k[x]$ satisfying
 	\begin{itemize}
-		\item $f = q \cdot g + r$
-		\item $r=0$ or $\deg(r) < \deg(g)$
+		\item $f = q \cdot g + r$,
+		\item $r=0$ or $\deg(r) < \deg(g)$.
 	\end{itemize}
 \end{thm}
-The proof of this theorem in \cite{cox-2013} includes a well-known algorithm to compute $q$ and $r$.\\
+The proof of this theorem in \cite{cox-2013} is constructive; it provides an algorithm to compute $q$ and $r$.
 Once we switch from one variable to multiple (but finitely many) variables, we have a similar result
 (Theorem 3 in chapter 2.3 of \cite{cox-2013}):
-\begin{thm}
+\begin{thm}\label{thm:multi-var-div}
 	Let $>$ be a monomial ordering on the monomials of $\kx$, $f \in \kx$
 	and $(l_1, \dots, l_s)$ be an ordered $s$-tuple of polynomials in $\kx$.
 	Then there exist $q_1, \dots, q_s, r \in \kx$ satisfying
 	\begin{itemize}
-		\item $f = q_1l_1 + \dots + q_sl_s + r$
-		\item No term of $r$ is divisible by any of $LM(l_1), \dots, LM(l_s)$
+		\item $f = q_1l_1 + \dots + q_sl_s + r$,
+		\item No term of $r$ is divisible by any of $\LM(l_1), \dots, \LM(l_s)$.
 	\end{itemize}
 \end{thm}
-Again, one can find an algorithm for this problem in the proof in \cite{cox-2013}.\\
+Again, one can find an algorithm for this problem in the proof in \cite{cox-2013}.
 This document is about an implementation of that algorithm in Macaulay2
-while avoiding the built-in operators \texttt{\%}, \texttt{/} and \texttt{//} on polynomials (and hence also on monomials).\\
+while avoiding the built-in operators \texttt{\%}, \texttt{/}, and \texttt{//} on polynomials (and hence also on monomials).
 For example, the implementation could be used in the following context (\texttt{division\_alg} is the function to be implemented):
-\begin{lstlisting}
+\begin{lstlisting}[caption={Example Usage},label=lst:example]
 	QQ[x,y,MonomialOrder=>Lex];
 	f = x*y^2 + 1;
 	gs = { x*y + 1, y + 1 };
 	division_alg(f, gs)
 \end{lstlisting}
-\todo{hier könnten wir noch die Ausgabe von der Funktion dazupacken}
+Listing~\ref{lst:example} produces the following output:
+\begin{lstlisting}
+o7 = {{y, -1}, 2}
+\end{lstlisting}
+The inner list corresponds to the coefficients called \(q\) in Theorem~\ref{thm:multi-var-div} and their order matches the second argument, \texttt{gs}; the second element, \texttt{2} in this case, gives the remainder, satisfying the condition in Theorem~\ref{thm:multi-var-div}.
+That is,
+\begin{equation*}
+  xy^2 + 1 = f = y \cdot (xy + 1) + (-1) \cdot (y + 1) + 2.
+\end{equation*}
+
 \section{Implementation}
+This section gives a detailed description of our implementation of the division algorithm, including an explanation of some of the potentially more obscure features of Macaulay2 that we used. 
 \subsection{Helper function for checking for divisibility}
 First, a function had to be implemented that checks for two given terms $m1, m2$ if $m1$ divides $m2$.
 The straightforward way for this in Macaulay2 would be the condition \texttt{m2 \% m1 == 0}.
@@ -93,7 +99,7 @@ Since the \texttt{\%}-operator is not allowed, a manual implementation is needed
 		return all(transpose({e1, e2}), e -> e#0 <= e#1)
 	);
 \end{lstlisting}
-Lines 6 and 7 extract the vectors of the exponents of the terms, line 10 checks if every of the exponents is smaller or equal for $m_1$ than for $m_2$ (which is equivalent to $m_2$ being divisible by $m_1$).
+Lines 6 and 7 extract the vectors of the exponents of the terms; line 10 checks if every of the exponents is smaller or equal for $m_1$ than for $m_2$ (which is equivalent to $m_2$ being divisible by $m_1$).
 \subsection{Helper function for dividing monomials}
 The second (and last) helper function actually divides the term $m_2$ by the term $m_1$.
 It has the precondition that $m_2$ is divisible by $m_1$.
@@ -112,9 +118,8 @@ So, divisibility should be checked before.
 \end{lstlisting}
 Division of monomials can be performed by subtraction of the respective exponents.
 The implementation does this in line 7.
-The underscore syntax in line 9 (“\texttt{theRing\_e}”) calculates the ring element (i.e. the monomial) that corresponds to the exponent vector \texttt{e}.\\
+The underscore syntax in line 9 (“\texttt{theRing\_e}”) calculates the ring element (i.e., the monomial) that corresponds to the exponent vector \texttt{e}.
 Usage of the \texttt{/}-operator is allowed here because it performs division of constants instead of polynomials.
-\pagebreak
 \subsection{Main function}
 \begin{lstlisting}
 	division_alg = (f, l) -> (
@@ -154,14 +159,14 @@ If not, it moves the leading term from $f$ to the remainder (lines 25 and 26).
 
 The correctness of the algorithm can be proven easily by showing that the following invariant holds before and after
 every iteration of the outer while-loop
-$$f_{orig} = f + qs_1 \cdot l_1 + \dots + qs_s \cdot l_s + r$$
-$f_{orig}$ refers to the value of $f$ at the beginning of the algorithm.
+$$f_{\mathrm{orig}} = f + qs_1 \cdot l_1 + \dots + qs_s \cdot l_s + r$$
+$f_{\mathrm{orig}}$ refers to the value of $f$ at the beginning of the algorithm.
 
 To make sure that the algorithm terminates, one has to show that $f$ will eventually become $0$.
 In order to do that, one can observe that the leading monomial of $f$ becomes strictly smaller
 (w.r.t. to the monomial ordering)
 in every iteration of the outer while-loop.
-Since there is no infinitely long strictly decreasing chain of monomials w.r.t. a monomial ordering,
+Since there is no infinitely long strictly decreasing chain of monomials w.r.t.\ a monomial ordering,
 $f$ has to become $0$ after finitely many iterations.
 \nocite{*}
 \bibliographystyle{plain}
